@@ -8,6 +8,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [allPokemon, setAllPokemon] = useState([]);
+  const [offlineMode, setOfflineMode] = useState(false);
   const itemsPerPage = 20;
 
   // Cargar Pokémon de una página específica
@@ -21,17 +22,31 @@ function App() {
       // Obtener detalles de cada Pokémon en la página
       const pokemonDetails = await Promise.all(
         pagePokemon.map(async (pokemon) => {
-          const pokemonResponse = await fetch(pokemon.url);
-          return pokemonResponse.json();
+          try {
+            const pokemonResponse = await fetch(pokemon.url);
+            if (!pokemonResponse.ok) throw new Error('Network error');
+            return pokemonResponse.json();
+          } catch (error) {
+            console.error('Error loading Pokémon details:', error);
+            // Devolver un Pokémon de placeholder en caso de error
+            return {
+              id: 0,
+              name: pokemon.name,
+              sprites: { front_default: 'https://via.placeholder.com/120x120/333/fff?text=?' },
+              types: [{ type: { name: 'unknown' } }]
+            };
+          }
         })
       );
       
       setPokemonList(pokemonDetails);
       setCurrentPage(page);
       setLoading(false);
+      setOfflineMode(false);
     } catch (error) {
       console.error('Error loading page Pokémon:', error);
       setLoading(false);
+      setOfflineMode(true);
     }
   };
 
@@ -39,6 +54,7 @@ function App() {
     const fetchAllPokemon = async () => {
       try {
         const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000');
+        if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         setAllPokemon(data.results);
         setTotalPages(Math.ceil(data.results.length / itemsPerPage));
@@ -46,11 +62,17 @@ function App() {
       } catch (error) {
         console.error('Error fetching Pokémon:', error);
         setLoading(false);
+        setOfflineMode(true);
+        
+        // Intentar cargar datos cacheados localmente
+        if (allPokemon.length > 0) {
+          loadPagePokemon(allPokemon, 1);
+        }
       }
     };
 
     fetchAllPokemon();
-  }, []); // Empty dependency array since we only want this to run once
+  }, []);
 
   // Manejar cambio de página
   const handlePageChange = (newPage) => {
@@ -82,11 +104,13 @@ function App() {
         setCurrentPage(1);
         setTotalPages(1);
         setLoading(false);
+        setOfflineMode(false);
       } else {
         throw new Error('Pokémon not found');
       }
     } catch (error) {
       console.error('Error searching Pokémon:', error);
+      setOfflineMode(true);
       // Búsqueda local como fallback
       const filtered = allPokemon.filter(pokemon => 
         pokemon.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -118,6 +142,11 @@ function App() {
     <div className="App">
       <header className="header">
         <h1>PokePWA - Tu Pokédex</h1>
+        {offlineMode && (
+          <div className="offline-banner">
+            ⚠️ Modo offline - Mostrando datos cacheados
+          </div>
+        )}
         <div className="search-container">
           <input
             type="text"
