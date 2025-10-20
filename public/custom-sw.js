@@ -37,11 +37,12 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
-            console.log('Eliminando cache viejo:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
+  if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
+    console.log('Eliminando cache viejo:', cacheName);
+    return caches.delete(cacheName);
+  }
+  return null; // ← AGREGAR ESTA LÍNEA
+})
       );
     })
   );

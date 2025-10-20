@@ -50,29 +50,22 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    const fetchAllPokemon = async () => {
-      try {
-        const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000');
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        setAllPokemon(data.results);
-        setTotalPages(Math.ceil(data.results.length / itemsPerPage));
-        loadPagePokemon(data.results, 1);
-      } catch (error) {
-        console.error('Error fetching Pokémon:', error);
-        setLoading(false);
-        setOfflineMode(true);
-        
-        // Intentar cargar datos cacheados localmente
-        if (allPokemon.length > 0) {
-          loadPagePokemon(allPokemon, 1);
-        }
-      }
-    };
+ useEffect(() => {
+  const fetchAllPokemon = async () => {
+    try {
+      const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000');
+      const data = await response.json();
+      setAllPokemon(data.results);
+      setTotalPages(Math.ceil(data.results.length / itemsPerPage));
+      loadPagePokemon(data.results, 1);
+    } catch (error) {
+      console.error('Error fetching Pokémon:', error);
+      setLoading(false);
+    }
+  };
 
-    fetchAllPokemon();
-  }, []);
+  fetchAllPokemon();
+}, []); // ← Dejar vacío, está correcto
 
   // Manejar cambio de página
   const handlePageChange = (newPage) => {
