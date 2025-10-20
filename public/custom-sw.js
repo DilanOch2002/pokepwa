@@ -1,30 +1,38 @@
 /* eslint-disable no-restricted-globals */
 
-const CACHE_NAME = 'pokepwa-cache-v3';
-const API_CACHE_NAME = 'pokeapi-cache-v3';
+const CACHE_NAME = 'pokepwa-final-v1';
+const API_CACHE_NAME = 'pokeapi-final-v1';
 
-// Solo archivos esenciales que siempre existen
+// Cachear TODO lo necesario
 const STATIC_FILES = [
   '/',
-  '/manifest.json'
+  '/static/js/bundle.js',
+  '/static/css/main.css',
+  '/manifest.json',
+  '/pokeball-192.png',
+  '/pokeball-512.png'
 ];
 
-// Instalar
+// Instalar - Cache AGGRESIVO
 self.addEventListener('install', (event) => {
-  console.log('🔄 Service Worker instalándose...');
+  console.log('🚀 INSTALANDO Service Worker...');
   self.skipWaiting();
   
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('📦 Cacheando archivos esenciales...');
-        return cache.add('/');
+        console.log('📦 Cacheando archivos críticos...');
+        // Intentar cachear todo, pero si falla uno, continuar
+        return Promise.allSettled(
+          STATIC_FILES.map(url => 
+            cache.add(url).catch(err => 
+              console.log('⚠️ No se pudo cachear:', url, err)
+            )
+          )
+        );
       })
       .then(() => {
-        console.log('✅ Service Worker instalado correctamente');
-      })
-      .catch((error) => {
-        console.log('⚠️ Error cacheando, pero continuamos:', error);
+        console.log('✅ Instalación completada');
       })
   );
 });
@@ -33,76 +41,104 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   console.log('✅ Service Worker ACTIVADO!');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
-            console.log('🗑️ Eliminando cache viejo:', cacheName);
-            return caches.delete(cacheName);
-          }
-          return Promise.resolve();
-        })
-      );
-    }).then(() => self.clients.claim())
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
+              console.log('🗑️ Eliminando cache viejo:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+    ])
   );
 });
 
-// Interceptar peticiones
+// Estrategia: CACHE PRIMERO para TODO
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
   
+  // No cachear solicitudes que no sean GET
   if (event.request.method !== 'GET') return;
 
-  // PARA API POKÉMON
-  if (url.includes('pokeapi.co/api/v2/pokemon')) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(API_CACHE_NAME);
+  console.log('🔄 Interceptando:', url);
+
+  event.respondWith(
+    (async () => {
+      // PARA LA API DE POKÉMON
+      if (url.includes('pokeapi.co/api/v2/pokemon')) {
+        const apiCache = await caches.open(API_CACHE_NAME);
         
+        // 1. PRIMERO buscar en cache
+        const cachedResponse = await apiCache.match(event.request);
+        if (cachedResponse) {
+          console.log('✅ Sirviendo API desde cache:', url);
+          return cachedResponse;
+        }
+
+        // 2. Si no está en cache, intentar red
         try {
-          // 1. Intentar red primero
           console.log('🌐 Intentando red para API...');
-          const response = await fetch(event.request);
+          const networkResponse = await fetch(event.request);
           
-          // 2. Si funciona, guardar en cache
-          if (response.status === 200) {
-            console.log('💾 Guardando respuesta API en cache');
-            cache.put(event.request, response.clone());
+          if (networkResponse.ok) {
+            console.log('💾 Guardando en cache API:', url);
+            apiCache.put(event.request, networkResponse.clone());
           }
           
-          return response;
+          return networkResponse;
         } catch (error) {
-          // 3. Si falla la red, usar cache
-          console.log('📡 Sin conexión, buscando en cache...');
-          const cached = await cache.match(event.request);
-          
-          if (cached) {
-            console.log('✅ Sirviendo desde cache OFFLINE');
-            return cached;
-          }
-          
-          // 4. Si no hay cache, error
-          console.log('❌ No hay datos cacheados');
+          console.log('❌ Error de red para API');
+          // Devolver respuesta de error útil
           return new Response(
-            JSON.stringify({ 
+            JSON.stringify({
               error: 'offline',
-              message: 'Conéctate a internet para cargar Pokémon' 
+              message: 'No hay conexión a internet'
             }),
-            { headers: { 'Content-Type': 'application/json' } }
+            {
+              status: 200, // Usar 200 para que React no falle
+              headers: { 'Content-Type': 'application/json' }
+            }
           );
         }
-      })()
-    );
-    return;
-  }
-
-  // Para todo lo demás - Cache First
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) {
-        return cached;
       }
-      return fetch(event.request);
-    })
+
+      // PARA ARCHIVOS ESTÁTICOS - SIEMPRE CACHE PRIMERO
+      const staticCache = await caches.open(CACHE_NAME);
+      const cachedStatic = await staticCache.match(event.request);
+      
+      if (cachedStatic) {
+        console.log('📁 Sirviendo estático desde cache:', url);
+        return cachedStatic;
+      }
+
+      // Si no está en cache, intentar red
+      try {
+        const networkResponse = await fetch(event.request);
+        if (networkResponse.ok) {
+          staticCache.put(event.request, networkResponse.clone());
+        }
+        return networkResponse;
+      } catch (error) {
+        console.log('❌ Error cargando:', url);
+        // Para la raíz, devolver el index.html cachead
+        if (url === self.location.origin + '/') {
+          return staticCache.match('/');
+        }
+        return new Response('Offline - Sin conexión', { status: 200 });
+      }
+    })()
   );
+});
+
+// Cachear datos iniciales automáticamente
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CACHE_POKEMON') {
+    caches.open(API_CACHE_NAME).then(cache => {
+      cache.add('https://pokeapi.co/api/v2/pokemon?limit=1000');
+    });
+  }
 });

@@ -11,6 +11,15 @@ function App() {
   const [offlineMode, setOfflineMode] = useState(false);
   const itemsPerPage = 20;
 
+  // Precache automático cuando hay conexión
+  useEffect(() => {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'CACHE_POKEMON'
+      });
+    }
+  }, []);
+
   // Cargar Pokémon de una página específica
   const loadPagePokemon = async (allPokemonList, page) => {
     setLoading(true);
@@ -27,10 +36,12 @@ function App() {
             return pokemonResponse.json();
           } catch (error) {
             console.error('Error loading Pokémon details:', error);
+            setOfflineMode(true);
+            // Pokémon de placeholder para offline
             return {
-              id: 0,
+              id: Math.random(),
               name: pokemon.name,
-              sprites: { front_default: 'https://via.placeholder.com/120x120/333/fff?text=?' },
+              sprites: { front_default: 'https://via.placeholder.com/120x120/666/fff?text=⚡' },
               types: [{ type: { name: 'unknown' } }]
             };
           }
@@ -40,7 +51,6 @@ function App() {
       setPokemonList(pokemonDetails);
       setCurrentPage(page);
       setLoading(false);
-      setOfflineMode(false);
     } catch (error) {
       console.error('Error loading page Pokémon:', error);
       setLoading(false);
@@ -52,18 +62,31 @@ function App() {
     const fetchAllPokemon = async () => {
       try {
         const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000');
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) throw new Error('Network error');
         const data = await response.json();
         setAllPokemon(data.results);
         setTotalPages(Math.ceil(data.results.length / itemsPerPage));
         loadPagePokemon(data.results, 1);
+        setOfflineMode(false);
       } catch (error) {
         console.error('Error fetching Pokémon:', error);
-        setLoading(false);
         setOfflineMode(true);
+        setLoading(false);
         
+        // Intentar usar datos locales si existen
         if (allPokemon.length > 0) {
           loadPagePokemon(allPokemon, 1);
+        } else {
+          // Datos de fallback para demo
+          const fallbackData = {
+            results: Array.from({ length: 20 }, (_, i) => ({
+              name: `pokemon-${i + 1}`,
+              url: `https://pokeapi.co/api/v2/pokemon/${i + 1}`
+            }))
+          };
+          setAllPokemon(fallbackData.results);
+          setTotalPages(1);
+          loadPagePokemon(fallbackData.results, 1);
         }
       }
     };
