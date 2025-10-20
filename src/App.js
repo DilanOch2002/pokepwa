@@ -19,7 +19,6 @@ function App() {
       const endIndex = startIndex + itemsPerPage;
       const pagePokemon = allPokemonList.slice(startIndex, endIndex);
 
-      // Obtener detalles de cada Pokémon en la página
       const pokemonDetails = await Promise.all(
         pagePokemon.map(async (pokemon) => {
           try {
@@ -28,7 +27,6 @@ function App() {
             return pokemonResponse.json();
           } catch (error) {
             console.error('Error loading Pokémon details:', error);
-            // Devolver un Pokémon de placeholder en caso de error
             return {
               id: 0,
               name: pokemon.name,
@@ -50,22 +48,28 @@ function App() {
     }
   };
 
- useEffect(() => {
-  const fetchAllPokemon = async () => {
-    try {
-      const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000');
-      const data = await response.json();
-      setAllPokemon(data.results);
-      setTotalPages(Math.ceil(data.results.length / itemsPerPage));
-      loadPagePokemon(data.results, 1);
-    } catch (error) {
-      console.error('Error fetching Pokémon:', error);
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const fetchAllPokemon = async () => {
+      try {
+        const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        setAllPokemon(data.results);
+        setTotalPages(Math.ceil(data.results.length / itemsPerPage));
+        loadPagePokemon(data.results, 1);
+      } catch (error) {
+        console.error('Error fetching Pokémon:', error);
+        setLoading(false);
+        setOfflineMode(true);
+        
+        if (allPokemon.length > 0) {
+          loadPagePokemon(allPokemon, 1);
+        }
+      }
+    };
 
-  fetchAllPokemon();
-}, []); // ← Dejar vacío, está correcto
+    fetchAllPokemon();
+  }, []);
 
   // Manejar cambio de página
   const handlePageChange = (newPage) => {
@@ -89,7 +93,6 @@ function App() {
 
     setLoading(true);
     try {
-      // Buscar Pokémon por nombre
       const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${searchTerm.toLowerCase()}`);
       if (response.ok) {
         const pokemonData = await response.json();
@@ -104,7 +107,6 @@ function App() {
     } catch (error) {
       console.error('Error searching Pokémon:', error);
       setOfflineMode(true);
-      // Búsqueda local como fallback
       const filtered = allPokemon.filter(pokemon => 
         pokemon.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -135,11 +137,14 @@ function App() {
     <div className="App">
       <header className="header">
         <h1>PokePWA - Tu Pokédex</h1>
+        
+        {/* ✅ BANNER OFFLINE */}
         {offlineMode && (
           <div className="offline-banner">
             ⚠️ Modo offline - Mostrando datos cacheados
           </div>
         )}
+        
         <div className="search-container">
           <input
             type="text"
@@ -158,7 +163,6 @@ function App() {
         </div>
       </header>
       
-      {/* Información de página y resultados */}
       <div className="page-info">
         <p>
           Página {currentPage} de {totalPages} 
@@ -167,7 +171,6 @@ function App() {
         <p>Mostrando {filteredPokemon.length} Pokémon</p>
       </div>
 
-      {/* Grid de Pokémon */}
       <div className="pokemon-grid">
         {filteredPokemon.length > 0 ? (
           filteredPokemon.map((pokemon) => (
@@ -203,7 +206,6 @@ function App() {
         )}
       </div>
 
-      {/* Controles de paginación */}
       {totalPages > 1 && filteredPokemon.length > 0 && (
         <div className="pagination">
           <button 
@@ -221,7 +223,6 @@ function App() {
             ◀️ Anterior
           </button>
           
-          {/* Números de página */}
           <div className="page-numbers">
             {[...Array(Math.min(5, totalPages))].map((_, index) => {
               const pageNum = Math.max(1, currentPage - 2) + index;
@@ -257,7 +258,6 @@ function App() {
         </div>
       )}
 
-      {/* Loading durante cambios de página */}
       {loading && pokemonList.length > 0 && (
         <div className="loading-overlay">
           <div className="loading">Cargando...</div>

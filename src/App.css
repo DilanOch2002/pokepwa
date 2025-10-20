@@ -15,6 +15,23 @@
   margin-bottom: 20px;
 }
 
+/* Banner offline */
+.offline-banner {
+  background: #ff9800;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  margin: 10px 0;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
 .search-container {
   display: flex;
   justify-content: center;
@@ -73,7 +90,7 @@
   margin-top: 50px;
 }
 
-/* GRID CORREGIDO - Centrado y Responsive */
+/* GRID Centrado */
 .pokemon-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -158,7 +175,6 @@
 .type.steel { background-color: #B8B8D0; }
 .type.fairy { background-color: #EE99AC; }
 
-/* Información de página */
 .page-info {
   color: white;
   margin: 10px 0;
@@ -166,7 +182,6 @@
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-/* Paginación */
 .pagination {
   display: flex;
   justify-content: center;
@@ -216,7 +231,6 @@
   gap: 5px;
 }
 
-/* Loading animado */
 .pokeball-loading {
   width: 50px;
   height: 50px;
@@ -246,7 +260,6 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Loading overlay */
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -267,7 +280,6 @@
   color: #333;
 }
 
-/* No results */
 .no-results {
   grid-column: 1 / -1;
   color: white;
@@ -281,13 +293,6 @@
 }
 
 /* Responsive */
-@media (max-width: 1200px) {
-  .pokemon-grid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    max-width: 1000px;
-  }
-}
-
 @media (max-width: 768px) {
   .pokemon-grid {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -363,31 +368,4 @@
     padding: 6px 8px;
     min-width: 30px;
   }
-}
-
-@media (max-width: 360px) {
-  .pokemon-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .pokemon-card {
-    width: 200px;
-  }
-}
-
-/* Banner offline */
-.offline-banner {
-  background: #ff9800;
-  color: white;
-  padding: 10px;
-  border-radius: 5px;
-  margin: 10px 0;
-  font-weight: bold;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 0.8; }
-  50% { opacity: 1; }
-  100% { opacity: 0.8; }
 }
