@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-globals */
+
 const CACHE_NAME = 'pokepwa-v1';
 const API_CACHE_NAME = 'pokeapi-v1';
 
@@ -12,13 +14,10 @@ const STATIC_FILES = [
   '/pokeball-512.png'
 ];
 
-// Usar 'this' en lugar de 'self' para evitar el warning de ESLint
-const sw = this;
-
 // Instalar - Cachear archivos estáticos
-sw.addEventListener('install', (event) => {
+self.addEventListener('install', (event) => {
   console.log('Service Worker instalado');
-  sw.skipWaiting(); // Forzar activación inmediata
+  self.skipWaiting(); // Forzar activación inmediata
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -32,7 +31,7 @@ sw.addEventListener('install', (event) => {
 });
 
 // Activar - Limpiar caches viejos
-sw.addEventListener('activate', (event) => {
+self.addEventListener('activate', (event) => {
   console.log('Service Worker activado');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -46,11 +45,11 @@ sw.addEventListener('activate', (event) => {
       );
     })
   );
-  sw.clients.claim(); // Tomar control inmediato de todas las pestañas
+  self.clients.claim(); // Tomar control inmediato de todas las pestañas
 });
 
 // Fetch - Interceptar peticiones
-sw.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', (event) => {
   // Solo manejar peticiones GET
   if (event.request.method !== 'GET') return;
 
