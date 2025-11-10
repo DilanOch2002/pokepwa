@@ -153,3 +153,14 @@ self.addEventListener("message", (event) => {
     });
   }
 });
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SHOW_NOTIFICATION") {
+    self.registration.showNotification("Pokédex", {
+      body: event.data.body,
+      icon: "/pokeball-192.png",
+      badge: "/pokeball-192.png",
+      vibrate: [200, 100, 200]
+    });
+  }
+});

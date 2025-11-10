@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+const pedirPermisoNotificaciones = async () => {
+  if (!("Notification" in window)) {
+    alert("Tu navegador no soporta notificaciones.");
+    return;
+  }
+
+  const permiso = await Notification.requestPermission();
+
+  if (permiso === "granted") {
+    alert("✅ Notificaciones activadas");
+  } else {
+    alert("❌ No se activaron las notificaciones");
+  }
+};
+
+
+
 function App() {
   const [pokemonList, setPokemonList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,22 +26,28 @@ function App() {
   const [totalPages, setTotalPages] = useState(1);
   const [allPokemon, setAllPokemon] = useState([]);
   const [offlineMode, setOfflineMode] = useState(false);
+  const [selectedPokemon, setSelectedPokemon] = useState(null); // Para el modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const itemsPerPage = 20;
 
-  // ✅ Notificaciones (siempre arriba)
+  // Notificaciones
   const enviarNotificacion = async (mensaje = "Pokédex actualizada") => {
-    if ("serviceWorker" in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      if (registration.active) {
-        registration.active.postMessage({
-          type: "SHOW_NOTIFICATION",
-          body: mensaje
-        });
+    if ("serviceWorker" in navigator && Notification.permission === "granted") {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+          registration.active.postMessage({
+            type: "SHOW_NOTIFICATION",
+            body: mensaje
+          });
+        }
+      } catch (e) {
+        console.warn("No se pudo enviar notificación:", e);
       }
     }
   };
 
-  // ✅ Pre-cache cuando hay conexión
+  // Pre-cache cuando hay conexión
   useEffect(() => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
@@ -33,7 +56,7 @@ function App() {
     }
   }, []);
 
-  // ✅ Cargar Pokémon por página
+  // Cargar Pokémon por página
   const loadPagePokemon = async (allPokemonList, page) => {
     setLoading(true);
     try {
@@ -73,7 +96,7 @@ function App() {
     }
   };
 
-  // ✅ Cargar todo el listado al inicio
+  // Cargar todo el listado al inicio (solo una vez)
   useEffect(() => {
     const fetchAllPokemon = async () => {
       try {
@@ -107,14 +130,45 @@ function App() {
     };
 
     fetchAllPokemon();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ✅ SOLO CORRE UNA VEZ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intencionalmente vacío para correr solo una vez
 
+  // Mostrar detalles al click (modal)
+  const mostrarDetalles = async (pokemonSummary) => {
+    setLoading(true);
+    try {
+      // pokemonSummary puede venir con .url o .name/id
+      const url = pokemonSummary.url || `https://pokeapi.co/api/v2/pokemon/${pokemonSummary.name || pokemonSummary.id}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("No se pudo obtener detalles");
+      const data = await res.json();
+      setSelectedPokemon(data);
+      setIsModalOpen(true);
+      // Notificación: se consultó un Pokémon
+      enviarNotificacion(`Consultado: ${data.name}`);
+    } catch (error) {
+      console.error("Error obteniendo detalles:", error);
+      setOfflineMode(true);
+      // Si falla, podemos mostrar un modal mínimo con el nombre
+      setSelectedPokemon({
+        id: pokemonSummary.id || Math.random(),
+        name: pokemonSummary.name || 'Desconocido',
+        sprites: { front_default: 'https://via.placeholder.com/200x200?text=?' },
+        types: [{ type: { name: 'unknown' } }],
+        height: null,
+        weight: null,
+        stats: []
+      });
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // ✅ Buscar Pokémon (individual o listado)
+  // Buscar Pokémon (individual o listado)
 const handleSearch = async () => {
 
-  // Notificación al iniciar búsqueda
+  // ✅ Notificación cuando inicias la búsqueda
   enviarNotificacion(`Buscando: ${searchTerm}`);
 
   if (searchTerm.trim() === '') {
@@ -124,14 +178,16 @@ const handleSearch = async () => {
   }
 
   setLoading(true);
+
   try {
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${searchTerm.toLowerCase()}`);
 
     if (res.ok) {
       const pokemonData = await res.json();
+
       setPokemonList([pokemonData]);
 
-      // Notificación extra cuando se encuentra un Pokémon
+      // ✅ Notificación cuando encuentra el Pokémon
       enviarNotificacion(`¡${pokemonData.name} agregado a tu Pokédex!`);
 
       setTotalPages(1);
@@ -156,21 +212,26 @@ const handleSearch = async () => {
 };
 
 
-  // ✅ Reset
+  // Reset
   const handleReset = () => {
     setSearchTerm('');
     loadPagePokemon(allPokemon, 1);
     setTotalPages(Math.ceil(allPokemon.length / itemsPerPage));
   };
 
-const filteredPokemon = searchTerm.trim()
-  ? pokemonList.filter(pokemon =>
-      pokemon.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  : pokemonList;
+  const filteredPokemon = searchTerm.trim()
+    ? pokemonList.filter(pokemon =>
+        pokemon.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : pokemonList;
 
+  // Cerrar modal
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedPokemon(null);
+  };
 
-  // ✅ UI cargando inicial
+  // UI cargando inicial
   if (loading && pokemonList.length === 0) {
     return (
       <div className="App">
@@ -242,7 +303,14 @@ const filteredPokemon = searchTerm.trim()
       <div className="pokemon-grid">
         {filteredPokemon.length > 0 ? (
           filteredPokemon.map((pokemon) => (
-            <div key={pokemon.id} className="pokemon-card">
+            <div
+              key={pokemon.id}
+              className="pokemon-card"
+              onClick={() => mostrarDetalles(pokemon)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter') mostrarDetalles(pokemon); }}
+            >
               <img
                 src={pokemon.sprites.front_default}
                 alt={pokemon.name}
@@ -255,10 +323,10 @@ const filteredPokemon = searchTerm.trim()
                 {pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1)}
               </h3>
               <p className="pokemon-id">
-                #{pokemon.id.toString().padStart(3, "0")}
+                #{(pokemon.id || 0).toString().padStart(3, "0")}
               </p>
               <div className="pokemon-types">
-                {pokemon.types.map(t => (
+                {(pokemon.types || []).map(t => (
                   <span key={t.type.name} className={`type ${t.type.name}`}>
                     {t.type.name}
                   </span>
@@ -331,7 +399,62 @@ const filteredPokemon = searchTerm.trim()
         </div>
       )}
 
-      {/* Loader overlay */}
+      {/* Modal detalles */}
+      {isModalOpen && selectedPokemon && (
+        <div className="modal-backdrop" onClick={closeModal}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeModal}>✖</button>
+            <div className="modal-header">
+              <img
+                src={selectedPokemon.sprites?.other?.['official-artwork']?.front_default || selectedPokemon.sprites?.front_default || 'https://via.placeholder.com/200x200?text=?'}
+                alt={selectedPokemon.name}
+                className="modal-image"
+              />
+              <div>
+                <h2>{selectedPokemon.name?.charAt(0).toUpperCase() + selectedPokemon.name?.slice(1)}</h2>
+                <p>ID: #{(selectedPokemon.id || 0).toString().padStart(3, "0")}</p>
+                <p>Altura: {selectedPokemon.height != null ? `${selectedPokemon.height / 10} m` : '—'}</p>
+                <p>Peso: {selectedPokemon.weight != null ? `${selectedPokemon.weight / 10} kg` : '—'}</p>
+              </div>
+            </div>
+
+            <div className="modal-section">
+              <h3>Tipos</h3>
+              <div className="pokemon-types">
+                {(selectedPokemon.types || []).map(t => (
+                  <span key={t.type.name} className={`type ${t.type.name}`}>{t.type.name}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-section">
+              <h3>Stats</h3>
+              <div>
+                {(selectedPokemon.stats || []).map(s => (
+                  <div key={s.stat.name} className="stat-row">
+                    <div className="stat-name">{s.stat.name}</div>
+                    <div className="stat-value">{s.base_stat}</div>
+                    <div className="stat-bar">
+                      <div className="stat-bar-fill" style={{ width: `${Math.min(100, (s.base_stat / 2))}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-section">
+              <h3>Habilidades</h3>
+              <ul>
+                {(selectedPokemon.abilities || []).map(a => (
+                  <li key={a.ability.name}>{a.ability.name}{a.is_hidden ? ' (hidden)' : ''}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loader overlay (opcional, puede quitarse) */}
       {loading && pokemonList.length > 0 && (
         <div className="loading-overlay">
           <div className="loading">Cargando...</div>
@@ -340,5 +463,9 @@ const filteredPokemon = searchTerm.trim()
     </div>
   );
 }
+<button onClick={pedirPermisoNotificaciones}>
+  Activar Notificaciones
+</button>
+
 
 export default App;
