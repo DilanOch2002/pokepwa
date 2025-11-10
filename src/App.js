@@ -107,7 +107,8 @@ function App() {
     };
 
     fetchAllPokemon();
-  }, [allPokemon]);
+  }, [allPokemon]); // ✅ SOLO CORRE UNA VEZ
+
 
   // ✅ Buscar Pokémon (individual o listado)
 const handleSearch = async () => {
