@@ -45,6 +45,7 @@ self.addEventListener('activate', (event) => {
       self.clients.claim(),
       caches.keys().then(cacheNames => {
         return Promise.all(
+          // eslint-disable-next-line array-callback-return
           cacheNames.map(cacheName => {
             if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
               console.log('🗑️ Eliminando cache viejo:', cacheName);
