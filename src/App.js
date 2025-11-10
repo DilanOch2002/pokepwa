@@ -158,6 +158,17 @@ function App() {
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // ✅ UI cargando inicial
+  if (loading && pokemonList.length === 0) {
+    return (
+      <div className="App">
+        <div className="loading">
+          <div className="pokeball-loading"></div>
+          Cargando Pokémon...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="App">
