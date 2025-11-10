@@ -110,41 +110,49 @@ function App() {
   }, [allPokemon]);
 
   // ✅ Buscar Pokémon (individual o listado)
-  const handleSearch = async () => {
-    if (searchTerm.trim() === '') {
-      loadPagePokemon(allPokemon, 1);
-      setTotalPages(Math.ceil(allPokemon.length / itemsPerPage));
-      return;
+const handleSearch = async () => {
+
+  // Notificación al iniciar búsqueda
+  enviarNotificacion(`Buscando: ${searchTerm}`);
+
+  if (searchTerm.trim() === '') {
+    loadPagePokemon(allPokemon, 1);
+    setTotalPages(Math.ceil(allPokemon.length / itemsPerPage));
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${searchTerm.toLowerCase()}`);
+
+    if (res.ok) {
+      const pokemonData = await res.json();
+      setPokemonList([pokemonData]);
+
+      // Notificación extra cuando se encuentra un Pokémon
+      enviarNotificacion(`¡${pokemonData.name} agregado a tu Pokédex!`);
+
+      setTotalPages(1);
+      setCurrentPage(1);
+      setLoading(false);
+      setOfflineMode(false);
+    } else {
+      throw new Error("No encontrado");
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${searchTerm.toLowerCase()}`);
+  } catch (error) {
+    console.error("Search error:", error);
+    setOfflineMode(true);
 
-      if (res.ok) {
-        const pokemonData = await res.json();
-        setPokemonList([pokemonData]);
-        enviarNotificacion(`¡${pokemonData.name} agregado a tu Pokédex!`);
-        setTotalPages(1);
-        setCurrentPage(1);
-        setLoading(false);
-        setOfflineMode(false);
-      } else {
-        throw new Error("No encontrado");
-      }
+    const filtered = allPokemon.filter(p =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-    } catch (error) {
-      console.error("Search error:", error);
-      setOfflineMode(true);
+    setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+    loadPagePokemon(filtered, 1);
+  }
+};
 
-      const filtered = allPokemon.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-      setTotalPages(Math.ceil(filtered.length / itemsPerPage));
-      loadPagePokemon(filtered, 1);
-    }
-  };
 
   // ✅ Reset
   const handleReset = () => {
@@ -153,10 +161,12 @@ function App() {
     setTotalPages(Math.ceil(allPokemon.length / itemsPerPage));
   };
 
-  // ✅ Filtrado visual
-  const filteredPokemon = pokemonList.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+const filteredPokemon = searchTerm.trim()
+  ? pokemonList.filter(pokemon =>
+      pokemon.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  : pokemonList;
+
 
   // ✅ UI cargando inicial
   if (loading && pokemonList.length === 0) {
