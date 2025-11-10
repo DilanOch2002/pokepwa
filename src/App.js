@@ -107,7 +107,8 @@ function App() {
     };
 
     fetchAllPokemon();
-  }, [allPokemon]); // ✅ SOLO CORRE UNA VEZ
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ✅ SOLO CORRE UNA VEZ
 
 
   // ✅ Buscar Pokémon (individual o listado)
