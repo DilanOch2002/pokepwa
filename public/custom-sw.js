@@ -6,8 +6,6 @@ const API_CACHE_NAME = 'pokeapi-final-v1';
 // Cachear TODO lo necesario
 const STATIC_FILES = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/manifest.json',
   '/pokeball-192.png',
   '/pokeball-512.png'
