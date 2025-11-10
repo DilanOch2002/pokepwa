@@ -120,6 +120,7 @@ function App() {
       if (response.ok) {
         const pokemonData = await response.json();
         setPokemonList([pokemonData]);
+        enviarNotificacion(`¡${pokemonData.name} agregado a tu Pokédex!`);
         setCurrentPage(1);
         setTotalPages(1);
         setLoading(false);
@@ -137,6 +138,19 @@ function App() {
       loadPagePokemon(filtered, 1);
     }
   };
+
+  const enviarNotificacion = async (mensaje = "Pokédex actualizada") => {
+  if ("serviceWorker" in navigator) {
+    const registration = await navigator.serviceWorker.ready;
+    if (registration.active) {
+      registration.active.postMessage({
+        type: "SHOW_NOTIFICATION",
+        body: mensaje
+      });
+    }
+  }
+};
+
 
   // Resetear búsqueda
   const handleReset = () => {
@@ -161,6 +175,28 @@ function App() {
       <header className="header">
         <h1>PokePWA - Tu Pokédex</h1>
         
+        <button
+  style={{
+    padding: "10px 20px",
+    borderRadius: "10px",
+    background: "#2196F3",
+    color: "white",
+    border: "none",
+    cursor: "pointer",
+    marginBottom: "15px"
+  }}
+  onClick={() => {
+    if ("Notification" in window) {
+      Notification.requestPermission().then((res) => {
+        console.log("Permiso de notificación:", res);
+      });
+    }
+  }}
+>
+  Activar notificaciones
+</button>
+
+
         {/* ✅ BANNER OFFLINE */}
         {offlineMode && (
           <div className="offline-banner">
